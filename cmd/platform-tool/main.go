@@ -18,16 +18,12 @@ func main() {
 		region        string
 		assumeRoleArn string
 		createFile    bool
+		jsonFormat    bool
 	)
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	update, err := updater.Update(cfg.CurrentVersion)
-	if err != nil {
-		log.FatalfColored("Could not update the binary: %s", update)
 	}
 
 	rootCmd := &cobra.Command{
@@ -57,6 +53,10 @@ func main() {
 		Short:   "Update CLI",
 		GroupID: "core",
 		Run: func(cmd *cobra.Command, args []string) {
+			update, err := updater.Update(cfg.CurrentVersion)
+			if err != nil {
+				log.FatalfColored("Could not update the binary: %s", update)
+			}
 			log.Printf("platform-tool version %s", cfg.CurrentVersion)
 		},
 	}
@@ -74,7 +74,7 @@ func main() {
 			if filePath == "" || repoName == "" || workspace == "" {
 				log.Fatal("Required flags: --file, --repo-name, --workspace")
 			}
-			cli.UploadSecret(cfg, filePath, repoName, workspace, assumeRoleArn, profile, region)
+			cli.UploadSecret(cfg, filePath, repoName, workspace, assumeRoleArn, profile, region, jsonFormat)
 		},
 	}
 
@@ -120,6 +120,7 @@ func main() {
 	uploadASMCmd.Flags().StringVar(&assumeRoleArn, "assumerole-arn", "", "ARN of the role to assume")
 	uploadASMCmd.Flags().StringVar(&profile, "profile", "", "AWS profile")
 	uploadASMCmd.Flags().StringVar(&region, "aws-region", "", "AWS region")
+	uploadASMCmd.Flags().BoolVar(&jsonFormat, "json", false, "Store variables as JSON (enables ephemeral resource consumption in Terraform 1.10+)")
 
 	retrieveASMCmd.Flags().AddFlagSet(uploadASMCmd.Flags())
 	retrieveASMCmd.Flags().BoolVar(&createFile, "create-file", false, "Write file instead of printing to stdout")

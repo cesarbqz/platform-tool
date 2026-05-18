@@ -24,7 +24,7 @@ func GetAssumeRoleArnFromFile(filePath, variableName, mapKey string) string {
 	return val
 }
 
-func UploadSecret(cfg *config.Config, filePath, repoName, workspace, assumeRoleArn, profile, region string) {
+func UploadSecret(cfg *config.Config, filePath, repoName, workspace, assumeRoleArn, profile, region string, jsonFormat bool) {
 	region, profile = getDefaultsIfNotExists(cfg, region, profile)
 	log.Printf("Uploading %s to AWS Secrets Manager...", filePath)
 
@@ -34,9 +34,26 @@ func UploadSecret(cfg *config.Config, filePath, repoName, workspace, assumeRoleA
 			log.Printf("Using assume role ARN from tfvars file: %s", assumeRoleArn)
 		}
 	}
-	secretValue, err := tfvars.LoadTfvarsFile(filePath)
-	if err != nil {
-		log.FatalfColored("%s", err)
+
+	var secretValue string
+	var err error
+
+	if jsonFormat {
+		// JSON mode: parses the .tfvars file and stores variables as JSON.
+		// This enables consumption via Terraform ephemeral resources (Terraform 1.10+)
+		// without persisting values in the state file.
+		log.Printf("JSON mode enabled — converting tfvars to JSON for ephemeral resource compatibility")
+		secretValue, err = tfvars.ConvertTfvarsToJSON(filePath)
+		if err != nil {
+			log.FatalfColored("Error converting tfvars to JSON: %s", err)
+		}
+	} else {
+		// Default mode: stores the .tfvars file as-is.
+		// Use retrieve-asm --create-file to restore it before running Terraform.
+		secretValue, err = tfvars.LoadTfvarsFile(filePath)
+		if err != nil {
+			log.FatalfColored("%s", err)
+		}
 	}
 
 	secretName := GetSecretName(region, repoName, workspace)
@@ -47,7 +64,12 @@ func UploadSecret(cfg *config.Config, filePath, repoName, workspace, assumeRoleA
 		log.FatalfColored("Error creating Secret %s: %s", secretName, result)
 	}
 
-	log.PrintfColored("Secret created: %s", secretName)
+	if jsonFormat {
+		log.PrintfColored("Secret created (JSON format): %s", secretName)
+		log.PrintfColored("Use ephemeral resources in Terraform 1.10+ to consume without state leaks.")
+	} else {
+		log.PrintfColored("Secret created: %s", secretName)
+	}
 }
 
 func RetrieveSecret(cfg *config.Config, repoName, workspace, assumeRoleArn, profile, region string, createFile bool) {

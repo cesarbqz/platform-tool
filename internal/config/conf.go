@@ -3,7 +3,6 @@ package config
 import (
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -26,32 +25,19 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("error decoding embedded config file: %w", err)
 	}
 
-	if config.CurrentVersion == "" {
-		return nil, errors.New("currentVersion is missing in config file")
-	}
-
-	if config.GitHubRepoOwner == "" {
-		return nil, errors.New("gitHub repo owner is missing in config file")
-	}
-
-	if config.GitHubRepoName == "" {
-		return nil, errors.New("gitHub repo name is missing in config file")
-	}
-
+	// Apply sensible defaults for optional fields.
+	// These can be overridden via flags at runtime.
 	if config.DefaultAssumeRoleHCLVarName == "" {
-		return nil, errors.New("default assume role var name is missing in config file")
+		config.DefaultAssumeRoleHCLVarName = "workspace_iam_roles"
 	}
 
 	if config.DefaultAWSRegion == "" {
-		return nil, errors.New("default AWS region is missing in config file")
+		config.DefaultAWSRegion = "us-east-1"
 	}
 
 	if config.DefaultAWSProfile == "" {
-		return nil, errors.New("default AWS profile is missing in config file")
+		config.DefaultAWSProfile = "default"
 	}
 
-	if config.TFCloudOrg == "" {
-		return nil, errors.New("tfcloud org is missing in config file")
-	}
 	return &config, nil
 }
